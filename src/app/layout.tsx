@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import type { Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { CartProvider } from "@/context/CartContext";
@@ -6,7 +7,12 @@ import Navbar from "@/components/Navbar";
 import CartDrawer from "@/components/CartDrawer";
 import Footer from "@/components/Footer";
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+  display: "swap",      // Prevents invisible-text flash while the font loads
+  preload: true,
+});
 
 export const metadata: Metadata = {
   title: "MONVRE Series 01",
@@ -17,6 +23,12 @@ export const metadata: Metadata = {
     description: "Premium tech-garment streetwear.",
     type: "website",
   },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: "#050505",
 };
 
 export default function RootLayout({

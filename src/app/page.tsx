@@ -6,6 +6,7 @@ import MonvreDeconstruction from "@/components/MonvreDeconstruction";
 import ProductCard from "@/components/ProductCard";
 import NewsletterSection from "@/components/NewsletterSection";
 import Link from "next/link";
+import Image from "next/image";
 
 export const revalidate = 30; // ISR — revalidate every 30s
 
@@ -108,10 +109,13 @@ export default async function HomePage() {
             </Link>
           </div>
           <div className="relative aspect-[4/5] bg-neutral-900 border border-white/5 overflow-hidden">
-            <img
+            <Image
               src="/hero-dark.jpg"
               alt="MONVRE Technical Aesthetic"
-              className="w-full h-full object-cover opacity-90"
+              fill
+              sizes="(max-width: 768px) 100vw, 50vw"
+              quality={75}
+              className="object-cover opacity-90"
             />
           </div>
         </div>
