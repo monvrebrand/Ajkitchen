@@ -1,65 +1,124 @@
-import Image from "next/image";
+// Server Component — no "use client"
+// Products are fetched from Supabase at request time — no loading flash.
 
-export default function Home() {
+import { createClient } from "@/utils/supabase/server";
+import MonvreDeconstruction from "@/components/MonvreDeconstruction";
+import ProductCard from "@/components/ProductCard";
+import NewsletterSection from "@/components/NewsletterSection";
+import Link from "next/link";
+
+export const revalidate = 30; // ISR — revalidate every 30s
+
+interface Product {
+  id: string;
+  name: string;
+  price: number;
+  category: string;
+  image: string;
+  in_stock: boolean;
+  sizes?: string[];
+  tag?: string;
+  featured?: boolean;
+}
+
+async function getFeatured(): Promise<Product[]> {
+  try {
+    const supabase = await createClient();
+    const { data } = await supabase
+      .from("products")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (!data || data.length === 0) return [];
+    const featured    = data.filter((p: Product) => p.featured);
+    const nonFeatured = data.filter((p: Product) => !p.featured);
+    // Fill up to 4: featured first, then non-featured to pad
+    const result = [...featured, ...nonFeatured].slice(0, 4);
+    return result as Product[];
+  } catch {
+    return [];
+  }
+}
+
+export default async function HomePage() {
+  const featured = await getFeatured();
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <>
+      {/* ===== Scrollytelling Hero ===== */}
+      <MonvreDeconstruction />
+
+      {/* ===== Brand Marquee ===== */}
+      <div className="overflow-hidden border-y border-white/5 py-4 bg-[#050505]">
+        <div className="flex whitespace-nowrap animate-marquee">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <span key={i} className="text-[9px] tracking-[0.45em] uppercase text-white mx-8">
+              MONVRE Series 01 Tech Garment Limited Drop 340gsm Cotton &nbsp;
+            </span>
+          ))}
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+      </div>
+
+      {/* ===== Featured Products ===== */}
+      <section className="max-w-7xl mx-auto px-4 md:px-6 pt-16 md:pt-32 pb-16 md:pb-24">
+        <div className="flex items-end justify-between mb-8 md:mb-16">
+          <div>
+            <p className="text-[8px] tracking-[0.35em] uppercase text-white/30 mb-2">Series 01</p>
+            <h2 className="text-3xl md:text-6xl font-black tracking-tighter text-white/90 uppercase">
+              Featured
+            </h2>
+          </div>
+          <Link
+            href="/store"
+            className="text-[10px] tracking-[0.2em] uppercase text-white border-b border-white pb-0.5 transition-all"
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+            View All
+          </Link>
+        </div>
+
+        {featured.length === 0 ? (
+          <div className="text-center py-12 border border-white/5 bg-white/[0.01]">
+            <p className="text-white/30 text-xs tracking-widest uppercase">No featured products found</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6">
+            {featured.map((p, i) => (
+              <ProductCard key={p.id} product={p as any} index={i} />
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* ===== Brand Story ===== */}
+      <section className="max-w-7xl mx-auto px-4 md:px-6 py-16 md:py-24 border-t border-white/5">
+        <div className="grid md:grid-cols-2 gap-10 md:gap-16 items-center">
+          <div>
+            <p className="text-[8px] tracking-[0.35em] uppercase text-white/30 mb-4 md:mb-6">About</p>
+            <h2 className="text-3xl md:text-5xl font-black tracking-tighter text-white/90 uppercase leading-tight mb-5 md:mb-8">
+              Built for the<br />Void Between<br />Fashion &amp; Function
+            </h2>
+            <p className="text-sm text-white/50 leading-relaxed max-w-md mb-7 md:mb-10">
+              MONVRE was born from the intersection of technical fabrication and streetwear identity.
+              Every piece in Series 01 is engineered to perform at the intersection of art and utility.
+            </p>
+            <Link
+              href="/store"
+              className="inline-block border border-white/20 text-[10px] tracking-[0.25em] uppercase px-7 py-3.5 hover:bg-white hover:text-black transition-all"
+            >
+              Explore Series 01
+            </Link>
+          </div>
+          <div className="relative aspect-[4/5] bg-neutral-900 border border-white/5 overflow-hidden">
+            <img
+              src="/hero-dark.jpg"
+              alt="MONVRE Technical Aesthetic"
+              className="w-full h-full object-cover opacity-90"
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+          </div>
         </div>
-      </main>
-    </div>
+      </section>
+
+      {/* ===== Newsletter ===== */}
+      <NewsletterSection />
+    </>
   );
 }
