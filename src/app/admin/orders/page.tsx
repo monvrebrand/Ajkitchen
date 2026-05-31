@@ -199,6 +199,7 @@ export default function AdminOrdersPage() {
               {[
                 ["Order",    selectedOrder.id],
                 ["Customer", selectedOrder.customer_name],
+                ["Phone",    selectedOrder.customer_phone || "Not provided"],
                 ["Amount",   `${selectedOrder.currency} ${Number(selectedOrder.total).toFixed(2)}`],
                 ["Address",  [selectedOrder.shipping_address, selectedOrder.shipping_city, selectedOrder.shipping_state, selectedOrder.shipping_zip].filter(Boolean).join(', ')],
               ].map(([label, val]) => (
