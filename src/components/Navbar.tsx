@@ -265,16 +265,7 @@ export default function Navbar() {
             transition={{ duration: 0.25 }}
             className="fixed inset-0 z-[250] bg-white pt-20 px-6 flex flex-col gap-6 md:hidden overflow-y-auto pb-10"
           >
-            {/* Logo in mobile menu header */}
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-14 h-14 rounded-2xl overflow-hidden shadow-lg border-2 border-pink-100">
-                <Image src="/logo.jpg" alt="AJ Kitchen" width={56} height={56} className="w-full h-full object-cover" />
-              </div>
-              <div>
-                <p className="text-2xl font-black tracking-tighter text-pink-600 uppercase">AJ KITCHEN</p>
-                <p className="text-[9px] text-pink-300 tracking-widest uppercase font-bold">Ghanaian Homemade Food</p>
-              </div>
-            </div>
+
             {allLinks.map((l) => (
               <Link
                 key={l.label}
