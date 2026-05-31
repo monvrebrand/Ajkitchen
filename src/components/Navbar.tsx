@@ -97,7 +97,7 @@ export default function Navbar() {
                 priority
               />
             </div>
-            <span className="text-sm font-black tracking-[0.2em] uppercase text-pink-600 group-hover:text-pink-700 transition-colors hidden sm:block">
+            <span className="text-sm font-black tracking-[0.2em] uppercase text-pink-600 group-hover:text-pink-700 transition-colors block">
               AJ KITCHEN
             </span>
           </Link>
