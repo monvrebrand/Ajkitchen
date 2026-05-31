@@ -1,23 +1,22 @@
+const path = require('path');
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Silence the "multiple lockfiles" workspace root warning
+  outputFileTracingRoot: path.join(__dirname),
+
   // Hide the floating Next.js dev-mode indicator
   devIndicators: false,
   // Allow network access without CORS warning
-  allowedDevOrigins: ["10.0.204.156", "localhost:3000", "localhost:3002"],
+  allowedDevOrigins: ['10.0.204.156', 'localhost:3000', 'localhost:3001', 'localhost:3002'],
 
   // ── Image optimisation ─────────────────────────────────────────────
   // Serve WebP/AVIF instead of JPEG/PNG — typically 40-60% smaller files.
   images: {
-    formats: ["image/avif", "image/webp"],
-    // Cache optimised images for 1 year on the CDN
+    formats: ['image/avif', 'image/webp'],
     minimumCacheTTL: 31536000,
-    // External image domains (Supabase storage)
-    remotePatterns: [
-      {
-        protocol: "https",
-        hostname: "**.supabase.co",
-      },
-    ],
+    // Add external image domains here if needed (e.g. Cloudinary, Neon CDN)
+    remotePatterns: [],
   },
 
   // ── HTTP Caching headers ────────────────────────────────────────────

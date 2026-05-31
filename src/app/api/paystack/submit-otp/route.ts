@@ -1,12 +1,6 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { sql } from '@/lib/db';
 import { sendOrderConfirmation } from '@/lib/email';
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { autoRefreshToken: false, persistSession: false } }
-);
 
 // Called from checkout after payment is confirmed
 export async function POST(req: Request) {
@@ -18,53 +12,47 @@ export async function POST(req: Request) {
     }
 
     // Check if order already exists (webhook may have saved it first)
-    const { data: existing } = await supabaseAdmin
-      .from('orders')
-      .select('id')
-      .eq('paystack_ref', reference)
-      .single();
+    const [existing] = await sql`SELECT id FROM orders WHERE paystack_ref = ${reference}`;
 
     if (existing) {
       return NextResponse.json({ status: true, orderId: existing.id });
     }
 
-    const orderNum = `MV-${Math.floor(100000 + Math.random() * 900000)}`;
+    const orderNum = `AJK-${Math.floor(100000 + Math.random() * 900000)}`;
 
-    const { error } = await supabaseAdmin.from('orders').insert({
-      id:                orderNum,
-      paystack_ref:      reference,
-      customer_name:     `${orderData.firstName} ${orderData.lastName}`,
-      customer_email:    orderData.email,
-      customer_phone:    orderData.phone,
-      shipping_address:  orderData.address,
-      shipping_city:     orderData.city,
-      items:             orderData.items,
-      subtotal:          orderData.subtotal,
-      shipping_fee:      orderData.shippingFee,
-      tax:               orderData.tax,
-      total:             orderData.total,
-      currency:          'GHS',
-      status:            'Processing',
-    });
+    const [newOrder] = await sql`
+      INSERT INTO orders (
+        id, paystack_ref, customer_name, customer_email, customer_phone,
+        shipping_address, shipping_city, items, subtotal, shipping_fee,
+        tax, total, currency, status
+      ) VALUES (
+        ${orderNum}, ${reference},
+        ${`${orderData.firstName} ${orderData.lastName}`},
+        ${orderData.email},
+        ${orderData.phone || null},
+        ${orderData.address},
+        ${orderData.city},
+        ${JSON.stringify(orderData.items)}::jsonb,
+        ${orderData.subtotal},
+        ${orderData.shippingFee || 0},
+        ${orderData.tax || 0},
+        ${orderData.total},
+        'GHS',
+        'Processing'
+      )
+      RETURNING id
+    `;
 
-    if (error) {
-      console.error('[submit-otp] Order save error:', error.message);
-    } else {
-      // Send the order confirmation email immediately
-      try {
-        await sendOrderConfirmation({
-          to: orderData.email,
-          orderNum: orderNum,
-          customerName: `${orderData.firstName} ${orderData.lastName}`,
-          items: orderData.items,
-          total: orderData.total,
-          currency: 'GHS',
-          address: `${orderData.address}, ${orderData.city}`,
-        });
-        console.log(`[submit-otp] Confirmation email sent to ${orderData.email} for order ${orderNum}`);
-      } catch (emailErr) {
-        console.error('[submit-otp] Error sending confirmation email:', emailErr);
-      }
+    if (newOrder) {
+      sendOrderConfirmation({
+        to:           orderData.email,
+        orderNum,
+        customerName: `${orderData.firstName} ${orderData.lastName}`,
+        items:        orderData.items,
+        total:        orderData.total,
+        currency:     'GHS',
+        address:      `${orderData.address}, ${orderData.city}`,
+      }).catch(console.error);
     }
 
     return NextResponse.json({ status: true, orderId: orderNum });

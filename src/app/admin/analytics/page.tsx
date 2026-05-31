@@ -17,7 +17,7 @@ export default function AdminAnalyticsPage() {
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [totalOrders, setTotalOrders] = useState(0);
   const [avgOrderValue, setAvgOrderValue] = useState(0);
-  const [returnRate, setReturnRate] = useState(0);
+  const [cancelRate, setCancelRate] = useState(0);
 
   const [revenueData, setRevenueData] = useState<number[]>([0, 0, 0, 0, 0, 0, 0]);
   const [ordersData, setOrdersData] = useState<number[]>([0, 0, 0, 0, 0, 0, 0]);
@@ -49,12 +49,12 @@ export default function AdminAnalyticsPage() {
         const avg = orderCount > 0 ? revenue / orderCount : 0;
         
         const returned = recentOrders.filter(o => o.status === "Cancelled").length;
-        const retRate = orderCount > 0 ? (returned / orderCount) * 100 : 0;
+        const cRate = orderCount > 0 ? (returned / orderCount) * 100 : 0;
 
         setTotalRevenue(revenue);
         setTotalOrders(orderCount);
         setAvgOrderValue(avg);
-        setReturnRate(retRate);
+        setCancelRate(cRate);
 
         const days: string[] = [];
         const revArr = [0, 0, 0, 0, 0, 0, 0];
@@ -69,7 +69,6 @@ export default function AdminAnalyticsPage() {
 
         recentOrders.forEach(o => {
           const oDate = new Date(o.created_at);
-          // Zero out hours to calculate exact day differences
           const d1 = new Date(oDate); d1.setHours(0,0,0,0);
           const d2 = new Date(now); d2.setHours(0,0,0,0);
           const diffTime = Math.abs(d2.getTime() - d1.getTime());
@@ -105,13 +104,13 @@ export default function AdminAnalyticsPage() {
         setTopProducts(sortedProducts.map(p => ({
           name: p.name,
           units: p.units,
-          revenue: `GHS ${p.rev.toFixed(2)}`,
+          revenue: `$ ${p.rev.toFixed(2)}`,
           pct: (p.rev / totalProdRev) * 100
         })));
 
         const geoMap: Record<string, number> = {};
         recentOrders.forEach(o => {
-          const city = o.shipping_city || "Unknown";
+          const city = o.shipping_city || "Columbus";
           geoMap[city] = (geoMap[city] || 0) + 1;
         });
 
@@ -141,81 +140,79 @@ export default function AdminAnalyticsPage() {
   const maxOrders = Math.max(...ordersData) || 1;
 
   if (loading) {
-    return <div className="py-16 text-center text-white/25 text-xs tracking-widest uppercase animate-pulse">Loading analytics…</div>;
+    return <div className="py-16 text-center text-pink-200 text-xs tracking-widest uppercase animate-pulse font-black">Analyzing Kitchen Data…</div>;
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 bg-white p-2">
       <div>
-        <h1 className="text-2xl font-black tracking-tighter text-white/90 uppercase">Analytics</h1>
-        <p className="text-xs text-white/30 mt-0.5">Last 7 days — Series 01 Launch Period</p>
+        <h1 className="text-2xl font-black tracking-tighter text-pink-600 uppercase">Kitchen Analytics</h1>
+        <p className="text-xs text-pink-300 mt-1 tracking-wide font-bold">Last 7 days performance</p>
       </div>
 
       {/* Summary KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: "Total Revenue", value: `GHS ${totalRevenue.toFixed(2)}`, change: "+", up: true },
-          { label: "Total Orders", value: totalOrders.toString(), change: "+", up: true },
-          { label: "Avg Order Value", value: `GHS ${avgOrderValue.toFixed(2)}`, change: "+", up: true },
-          { label: "Cancel Rate", value: `${returnRate.toFixed(1)}%`, change: "-", up: false },
+          { label: "Total Revenue", value: `$ ${totalRevenue.toFixed(2)}` },
+          { label: "Total Orders", value: totalOrders.toString() },
+          { label: "Avg Order", value: `$ ${avgOrderValue.toFixed(2)}` },
+          { label: "Cancel Rate", value: `${cancelRate.toFixed(1)}%` },
         ].map(k => (
-          <div key={k.label} className="bg-white/[0.03] border border-white/5 p-5 rounded-sm">
-            <p className="text-[9px] tracking-[0.3em] uppercase text-white/25 mb-3">{k.label}</p>
-            <p className="text-2xl font-black tracking-tight text-white/90">{k.value}</p>
-            <p className="text-[10px] mt-1 tracking-wide text-white/40">
-              {k.label === "Cancel Rate" ? "vs total orders" : "Last 7 days"}
-            </p>
+          <div key={k.label} className="bg-pink-50/20 border border-pink-100 p-5 rounded-sm shadow-sm">
+            <p className="text-[9px] tracking-[0.3em] uppercase text-pink-300 mb-3 font-black">{k.label}</p>
+            <p className="text-2xl font-black tracking-tight text-pink-600">{k.value}</p>
+            <p className="text-[10px] mt-1 tracking-wide text-pink-400 font-bold">Past 7 days</p>
           </div>
         ))}
       </div>
 
-      <div className="grid md:grid-cols-2 gap-5">
+      <div className="grid md:grid-cols-2 gap-6">
         {/* Revenue Chart */}
-        <div className="bg-white/[0.03] border border-white/5 rounded-sm p-5">
-          <p className="text-[9px] tracking-[0.3em] uppercase text-white/25 mb-6">Revenue (7 days)</p>
-          <div className="flex items-end gap-2 h-36">
+        <div className="bg-white border border-pink-100 rounded-sm p-6 shadow-sm">
+          <p className="text-[9px] tracking-[0.3em] uppercase text-pink-300 mb-8 font-black">Revenue Trend</p>
+          <div className="flex items-end gap-2 h-40">
             {revenueData.map((v, i) => (
-              <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
-                <span className="text-[8px] text-white/25 font-mono">GHS {v}</span>
-                <div className="w-full bg-white/90 rounded-sm transition-all" style={{ height: `${(v / maxRevenue) * 100}px`, minHeight: '2px' }} />
-                <span className="text-[8px] text-white/30">{weekDays[i]}</span>
+              <div key={i} className="flex-1 flex flex-col items-center gap-2">
+                <span className="text-[8px] text-pink-400 font-bold font-mono">${v.toFixed(0)}</span>
+                <div className="w-full bg-pink-500 rounded-sm transition-all shadow-sm" style={{ height: `${(v / maxRevenue) * 120}px`, minHeight: '4px' }} />
+                <span className="text-[8px] text-pink-300 font-black">{weekDays[i]}</span>
               </div>
             ))}
           </div>
         </div>
 
         {/* Orders Chart */}
-        <div className="bg-white/[0.03] border border-white/5 rounded-sm p-5">
-          <p className="text-[9px] tracking-[0.3em] uppercase text-white/25 mb-6">Orders (7 days)</p>
-          <div className="flex items-end gap-2 h-36">
+        <div className="bg-white border border-pink-100 rounded-sm p-6 shadow-sm">
+          <p className="text-[9px] tracking-[0.3em] uppercase text-pink-300 mb-8 font-black">Order Volume</p>
+          <div className="flex items-end gap-2 h-40">
             {ordersData.map((v, i) => (
-              <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
-                <span className="text-[8px] text-white/25 font-mono">{v}</span>
-                <div className="w-full bg-white/40 rounded-sm transition-all" style={{ height: `${(v / maxOrders) * 100}px`, minHeight: '2px' }} />
-                <span className="text-[8px] text-white/30">{weekDays[i]}</span>
+              <div key={i} className="flex-1 flex flex-col items-center gap-2">
+                <span className="text-[8px] text-pink-400 font-bold font-mono">{v}</span>
+                <div className="w-full bg-pink-300 rounded-sm transition-all shadow-sm" style={{ height: `${(v / maxOrders) * 120}px`, minHeight: '4px' }} />
+                <span className="text-[8px] text-pink-300 font-black">{weekDays[i]}</span>
               </div>
             ))}
           </div>
         </div>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-5">
-        {/* Top Products */}
-        <div className="bg-white/[0.03] border border-white/5 rounded-sm p-5">
-          <p className="text-[9px] tracking-[0.3em] uppercase text-white/25 mb-5">Top Products</p>
-          <div className="space-y-4">
-            {topProducts.length === 0 && <p className="text-xs text-white/30">No products sold in the last 7 days.</p>}
+      <div className="grid md:grid-cols-2 gap-6">
+        {/* Top Meals */}
+        <div className="bg-white border border-pink-100 rounded-sm p-6 shadow-sm">
+          <p className="text-[9px] tracking-[0.3em] uppercase text-pink-300 mb-6 font-black">Bestselling Meals</p>
+          <div className="space-y-5">
+            {topProducts.length === 0 && <p className="text-xs text-pink-200 font-bold">No data yet.</p>}
             {topProducts.map(p => (
               <div key={p.name}>
-                <div className="flex justify-between text-xs mb-1.5">
-                  <span className="text-white/65">{p.name}</span>
-                  <div className="flex gap-3 text-right">
-                    <span className="text-white/35">{p.units} sold</span>
-                    <span className="text-white/70 font-medium w-16 text-right">{p.revenue}</span>
+                <div className="flex justify-between text-xs mb-2">
+                  <span className="text-pink-700 font-black uppercase tracking-tight">{p.name}</span>
+                  <div className="flex gap-4 text-right">
+                    <span className="text-pink-300 font-bold">{p.units} orders</span>
+                    <span className="text-pink-600 font-black w-16 text-right">{p.revenue}</span>
                   </div>
                 </div>
-                <div className="h-1 bg-white/5 rounded-full overflow-hidden">
-                  <div className="h-full bg-white/60 rounded-full" style={{ width: `${p.pct}%` }} />
+                <div className="h-1.5 bg-pink-50 rounded-full overflow-hidden">
+                  <div className="h-full bg-pink-500 rounded-full shadow-sm" style={{ width: `${p.pct}%` }} />
                 </div>
               </div>
             ))}
@@ -223,21 +220,21 @@ export default function AdminAnalyticsPage() {
         </div>
 
         {/* Geography */}
-        <div className="bg-white/[0.03] border border-white/5 rounded-sm p-5">
-          <p className="text-[9px] tracking-[0.3em] uppercase text-white/25 mb-5">Orders by Region</p>
-          <div className="space-y-4">
-            {geoData.length === 0 && <p className="text-xs text-white/30">No regions tracked in the last 7 days.</p>}
+        <div className="bg-white border border-pink-100 rounded-sm p-6 shadow-sm">
+          <p className="text-[9px] tracking-[0.3em] uppercase text-pink-300 mb-6 font-black">Orders by Columbus Area</p>
+          <div className="space-y-5">
+            {geoData.length === 0 && <p className="text-xs text-pink-200 font-bold">No data yet.</p>}
             {geoData.map(g => (
               <div key={g.region}>
-                <div className="flex justify-between text-xs mb-1.5">
-                  <span className="text-white/65">{g.region}</span>
-                  <div className="flex gap-3">
-                    <span className="text-white/35">{g.orders} orders</span>
-                    <span className="text-white/60 w-8 text-right">{g.pct.toFixed(1)}%</span>
+                <div className="flex justify-between text-xs mb-2">
+                  <span className="text-pink-700 font-black uppercase tracking-tight">{g.region}</span>
+                  <div className="flex gap-4">
+                    <span className="text-pink-300 font-bold">{g.orders} drops</span>
+                    <span className="text-pink-600 font-black w-10 text-right">{g.pct.toFixed(1)}%</span>
                   </div>
                 </div>
-                <div className="h-1 bg-white/5 rounded-full overflow-hidden">
-                  <div className="h-full bg-white/40 rounded-full" style={{ width: `${g.pct}%` }} />
+                <div className="h-1.5 bg-pink-50 rounded-full overflow-hidden">
+                  <div className="h-full bg-pink-400 rounded-full shadow-sm" style={{ width: `${g.pct}%` }} />
                 </div>
               </div>
             ))}

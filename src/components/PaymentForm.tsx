@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState } from "react";
 import Script from "next/script";
 
 const PROVIDERS = [
@@ -14,7 +14,7 @@ type MoMoStage = "form" | "awaiting";
 
 interface Props {
   email: string;
-  amount: number; // GHS
+  amount: number; // USD
   onCardSuccess: (reference: string) => void;
   onMomoInitiated: (reference: string) => void;
   onError: (msg: string) => void;
@@ -27,19 +27,18 @@ export default function PaymentForm({ email, amount, onCardSuccess, onMomoInitia
   const [busy, setBusy]         = useState(false);
   const [momo, setMomo]         = useState({ phone: "", provider: "mtn" });
 
-  const inp = "w-full bg-white/5 border border-white/10 text-white text-xs px-4 py-4 placeholder:text-white/25 focus:outline-none focus:border-white/30 transition-colors";
+  const inp = "w-full bg-white border border-pink-100 text-pink-700 text-xs px-4 py-4 placeholder:text-pink-200 focus:outline-none focus:border-pink-500 transition-colors font-bold rounded-sm";
 
-  // ── Card: open Paystack secure popup ─────────────────────────
   const openCardPopup = () => {
     const PaystackPop = (window as any).PaystackPop;
     if (!PaystackPop) { onError("Payment system not loaded. Please refresh."); return; }
     const handler = PaystackPop.setup({
       key: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY,
       email,
-      amount: Math.round(amount * 100), // pesewas
-      currency: "GHS",
-      channels: ["card"], // card only — MoMo stays embedded
-      ref: `MV-${Date.now()}-${Math.floor(Math.random() * 9999)}`,
+      amount: Math.round(amount * 100),
+      currency: "USD",
+      channels: ["card"],
+      ref: `AJ-${Date.now()}-${Math.floor(Math.random() * 9999)}`,
       callback: (response: { reference: string }) => {
         onCardSuccess(response.reference);
       },
@@ -48,7 +47,6 @@ export default function PaymentForm({ email, amount, onCardSuccess, onMomoInitia
     handler.openIframe();
   };
 
-  // ── MoMo: fully embedded API call ────────────────────────────
   const submitMomo = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
@@ -75,7 +73,6 @@ export default function PaymentForm({ email, amount, onCardSuccess, onMomoInitia
     setBusy(false);
   };
 
-  // ── Method selector ──────────────────────────────────────────
   if (!method) {
     return (
       <>
@@ -84,20 +81,20 @@ export default function PaymentForm({ email, amount, onCardSuccess, onMomoInitia
           strategy="afterInteractive"
           onLoad={() => setPaystackReady(true)}
         />
-        <div className="space-y-3">
-          <p className="text-[9px] tracking-[0.3em] uppercase text-white/30 mb-5">Choose Payment Method</p>
+        <div className="space-y-4">
+          <p className="text-[9px] tracking-[0.3em] uppercase text-pink-400 mb-5 font-black">Choose Payment Method</p>
           {[
-            { id: "card" as Method,         icon: "💳", label: "Debit / Credit Card",  sub: "Visa, Mastercard, Verve — secure Paystack vault" },
-            { id: "mobile_money" as Method, icon: "📱", label: "Mobile Money",          sub: "MTN, Telecel, AirtelTigo — prompt sent to your phone" },
+            { id: "card" as Method,         icon: "💳", label: "Debit / Credit Card",  sub: "Secure payment via Visa, Mastercard" },
+            { id: "mobile_money" as Method, icon: "📱", label: "Mobile Money",          sub: "Available for African payment accounts" },
           ].map(m => (
             <button key={m.id!} onClick={() => setMethod(m.id)}
-              className="w-full flex items-center gap-4 bg-white/[0.03] border border-white/[0.08] hover:border-white/20 hover:bg-white/[0.06] p-4 transition-all text-left group">
+              className="w-full flex items-center gap-4 bg-pink-50/20 border border-pink-100 hover:border-pink-300 hover:bg-pink-50/50 p-5 transition-all text-left group rounded-sm shadow-sm">
               <span className="text-2xl">{m.icon}</span>
               <div className="flex-1">
-                <p className="text-xs font-semibold text-white/80">{m.label}</p>
-                <p className="text-[9px] text-white/25 mt-0.5">{m.sub}</p>
+                <p className="text-xs font-black text-pink-700 uppercase tracking-tight">{m.label}</p>
+                <p className="text-[9px] text-pink-400 font-bold mt-0.5">{m.sub}</p>
               </div>
-              <span className="text-white/20 group-hover:text-white/50 transition-colors">→</span>
+              <span className="text-pink-200 group-hover:text-pink-500 transition-colors font-black">→</span>
             </button>
           ))}
         </div>
@@ -105,7 +102,6 @@ export default function PaymentForm({ email, amount, onCardSuccess, onMomoInitia
     );
   }
 
-  // ── Card: launch Paystack popup ──────────────────────────────
   if (method === "card") {
     return (
       <>
@@ -116,71 +112,68 @@ export default function PaymentForm({ email, amount, onCardSuccess, onMomoInitia
         />
         <div className="space-y-4">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-[9px] tracking-[0.3em] uppercase text-white/30">Card Payment</p>
-            <button onClick={() => setMethod(null)} className="text-[9px] uppercase tracking-widest text-white/20 hover:text-white/50 transition-colors">← Back</button>
+            <p className="text-[9px] tracking-[0.3em] uppercase text-pink-400 font-black">Card Payment</p>
+            <button onClick={() => setMethod(null)} className="text-[9px] uppercase tracking-widest text-pink-300 hover:text-pink-600 transition-colors font-black">← Back</button>
           </div>
-          {/* Security notice */}
-          <div className="bg-green-500/5 border border-green-500/15 p-4 flex gap-3 items-start">
-            <span className="text-green-400 text-sm mt-0.5">🔒</span>
+          <div className="bg-green-50 border border-green-100 p-4 flex gap-3 items-start rounded-sm">
+            <span className="text-green-600 text-sm mt-0.5">🔒</span>
             <div>
-              <p className="text-[9px] text-green-400/70 font-semibold tracking-widest uppercase mb-1">Secure Card Payment</p>
-              <p className="text-[9px] text-white/30 leading-relaxed">
-                Your card details are entered directly in Paystack&apos;s encrypted vault. We never see or store your card number.
+              <p className="text-[9px] text-green-600 font-black tracking-widest uppercase mb-1">Encrypted Transaction</p>
+              <p className="text-[9px] text-green-500 font-bold leading-relaxed">
+                Your card details are processed securely. AJ KITCHEN never stores your credit card information.
               </p>
             </div>
           </div>
           <button
             onClick={openCardPopup}
             disabled={!paystackReady}
-            className="w-full bg-white text-black text-xs font-bold tracking-[0.25em] uppercase py-5 hover:bg-white/90 transition-colors disabled:opacity-40 flex items-center justify-center gap-2">
-            {paystackReady ? `Pay GHS ${amount} Securely →` : "Loading secure payment…"}
+            className="w-full bg-pink-500 text-white text-xs font-black tracking-[0.25em] uppercase py-5 hover:bg-pink-600 transition-colors disabled:opacity-40 flex items-center justify-center gap-2 rounded-sm shadow-lg">
+            {paystackReady ? `Pay $ ${amount} Securely →` : "Preparing Secure Vault…"}
           </button>
         </div>
       </>
     );
   }
 
-  // ── MoMo: awaiting screen ────────────────────────────────────
   if (momoStage === "awaiting") {
     return (
       <div className="text-center py-4">
         <div className="relative w-16 h-16 mx-auto mb-6">
-          <div className="absolute inset-0 rounded-full border border-white/10 animate-ping opacity-30" />
-          <div className="relative w-16 h-16 rounded-full border border-white/15 bg-white/[0.04] flex items-center justify-center text-xl">📱</div>
+          <div className="absolute inset-0 rounded-full border border-pink-200 animate-ping opacity-30" />
+          <div className="relative w-16 h-16 rounded-full border border-pink-100 bg-pink-50 flex items-center justify-center text-xl shadow-inner">📱</div>
         </div>
-        <p className="text-xs text-white/50 mb-1">MoMo prompt sent to</p>
-        <p className="text-sm font-mono font-bold text-white/80 mb-4">{momo.phone}</p>
+        <p className="text-xs text-pink-400 font-bold mb-1">MoMo prompt sent to</p>
+        <p className="text-sm font-mono font-black text-pink-700 mb-4">{momo.phone}</p>
         <div className="flex items-center justify-center gap-2 mb-6">
-          {[0,1,2].map(i => <span key={i} className="w-1.5 h-1.5 rounded-full bg-white/30 animate-bounce" style={{ animationDelay: `${i*0.15}s` }} />)}
-          <span className="text-[10px] text-white/25 ml-2 tracking-widest uppercase">Waiting for approval</span>
+          {[0,1,2].map(i => <span key={i} className="w-1.5 h-1.5 rounded-full bg-pink-300 animate-bounce" style={{ animationDelay: `${i*0.15}s` }} />)}
+          <span className="text-[10px] text-pink-400 ml-2 tracking-widest uppercase font-black">Waiting for approval</span>
         </div>
-        <p className="text-[10px] text-white/20">Enter your MoMo PIN on your phone. Do not close this page.</p>
+        <p className="text-[10px] text-pink-300 font-bold">Please approve on your device. Do not refresh.</p>
       </div>
     );
   }
 
-  // ── MoMo: entry form ─────────────────────────────────────────
   return (
-    <form onSubmit={submitMomo} className="space-y-3">
+    <form onSubmit={submitMomo} className="space-y-4">
       <div className="flex items-center justify-between mb-2">
-        <p className="text-[9px] tracking-[0.3em] uppercase text-white/30">Mobile Money</p>
-        <button type="button" onClick={() => setMethod(null)} className="text-[9px] uppercase tracking-widest text-white/20 hover:text-white/50 transition-colors">← Back</button>
+        <p className="text-[9px] tracking-[0.3em] uppercase text-pink-400 font-black">Mobile Money</p>
+        <button type="button" onClick={() => setMethod(null)} className="text-[9px] uppercase tracking-widest text-pink-300 hover:text-pink-600 transition-colors font-black">← Back</button>
       </div>
       <select value={momo.provider} onChange={e => setMomo(m => ({ ...m, provider: e.target.value }))}
-        className={inp + " cursor-pointer"}>
-        {PROVIDERS.map(p => <option key={p.value} value={p.value} className="bg-[#111]">{p.label}</option>)}
+        className={inp + " cursor-pointer bg-pink-50/30"}>
+        {PROVIDERS.map(p => <option key={p.value} value={p.value} className="text-pink-700">{p.label}</option>)}
       </select>
-      <input required type="tel" placeholder="Mobile Money Number (e.g. 0241234567)"
+      <input required type="tel" placeholder="Mobile Money Number"
         value={momo.phone} onChange={e => setMomo(m => ({ ...m, phone: e.target.value }))}
         className={inp} />
-      <p className="text-[10px] text-white/25 leading-relaxed">
-        A <strong className="text-white/40">GHS {amount}</strong> prompt will be sent to this number. Approve with your MoMo PIN.
+      <p className="text-[10px] text-pink-400 font-medium leading-relaxed">
+        A <strong className="text-pink-600">$ {amount}</strong> prompt will be sent to your phone.
       </p>
       <button type="submit" disabled={busy}
-        className="w-full bg-white text-black text-xs font-bold tracking-[0.25em] uppercase py-5 hover:bg-white/90 transition-colors disabled:opacity-40 flex items-center justify-center gap-2 mt-2">
+        className="w-full bg-pink-500 text-white text-xs font-black tracking-[0.25em] uppercase py-5 hover:bg-pink-600 transition-colors disabled:opacity-40 flex items-center justify-center gap-2 mt-2 rounded-sm shadow-lg">
         {busy
-          ? <><span className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />Sending Prompt…</>
-          : `Send GHS ${amount} MoMo Prompt`}
+          ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Requesting PIN…</>
+          : `Pay $ ${amount} via MoMo`}
       </button>
     </form>
   );

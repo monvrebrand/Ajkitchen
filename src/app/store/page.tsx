@@ -1,11 +1,8 @@
 // Server Component — no "use client"
-// Products are fetched directly from Supabase at request time.
-// No loading flash — HTML arrives with products already included.
-
-import { createClient } from "@/utils/supabase/server";
+import { sql } from "@/lib/db";
 import StoreClient from "./StoreClient";
 
-export const revalidate = 30; // ISR — revalidate cached page every 30s
+export const revalidate = 30; // ISR — revalidate every 30s
 
 interface Product {
   id: string;
@@ -19,14 +16,15 @@ interface Product {
   featured?: boolean;
 }
 
+const FOOD_CATEGORIES = ["Main Meals", "Sides", "Drinks"];
+
 async function fetchProducts(): Promise<Product[]> {
   try {
-    const supabase = await createClient();
-    const { data, error } = await supabase
-      .from("products")
-      .select("*")
-      .order("created_at", { ascending: true });
-    if (error || !data) return [];
+    const data = await sql`
+      SELECT * FROM products
+      WHERE category = ANY(${FOOD_CATEGORIES})
+      ORDER BY created_at ASC
+    `;
     return data as Product[];
   } catch {
     return [];

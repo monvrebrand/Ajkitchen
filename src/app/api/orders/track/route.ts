@@ -1,27 +1,25 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { autoRefreshToken: false, persistSession: false } }
-);
+import { sql } from '@/lib/db';
 
 export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url);
-  const id = searchParams.get('id');
+  try {
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get('id');
 
-  if (!id) return NextResponse.json({ error: 'Order ID required' }, { status: 400 });
+    if (!id) return NextResponse.json({ error: 'Order ID required' }, { status: 400 });
 
-  const { data, error } = await supabaseAdmin
-    .from('orders')
-    .select('id, status, created_at, total, currency, items, shipping_address, shipping_city, tracking_number')
-    .eq('id', id)
-    .single();
+    const [data] = await sql`
+      SELECT id, status, created_at, total, currency, items,
+             shipping_address, shipping_city, shipping_state, shipping_zip,
+             tracking_number, shipping_fee
+      FROM orders
+      WHERE id = ${id}
+    `;
 
-  if (error || !data) {
-    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    if (!data) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+    return NextResponse.json(data);
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
-
-  return NextResponse.json(data);
 }

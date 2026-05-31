@@ -1,63 +1,73 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { cookies } from 'next/headers';
+import { jwtVerify } from 'jose';
+import { sql } from '@/lib/db';
 import { sendStatusUpdate } from '@/lib/email';
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { autoRefreshToken: false, persistSession: false } }
-);
+const ADMIN_COOKIE = 'ajk_admin_session';
 
-// GET all orders
-export async function GET() {
-  const { data, error } = await supabaseAdmin
-    .from('orders')
-    .select('*')
-    .order('created_at', { ascending: false });
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data);
+async function isAdmin(): Promise<boolean> {
+  try {
+    const store = await cookies();
+    const token = store.get(ADMIN_COOKIE)?.value;
+    if (!token || !process.env.JWT_SECRET) return false;
+    await jwtVerify(token, new TextEncoder().encode(process.env.JWT_SECRET));
+    return true;
+  } catch { return false; }
 }
 
-// PATCH update order status (+ optional tracking number)
+// GET all orders (admin only)
+export async function GET() {
+  if (!await isAdmin()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  try {
+    const data = await sql`
+      SELECT id, customer_name, customer_email, customer_phone,
+             shipping_address, shipping_city, shipping_state, shipping_zip,
+             items, subtotal, shipping_fee, tax, total, currency,
+             status, tracking_number, note, payment_method, payment_screenshot, created_at
+      FROM orders ORDER BY created_at DESC
+    `;
+    return NextResponse.json(data);
+  } catch (err: unknown) {
+    return NextResponse.json({ error: err instanceof Error ? err.message : 'Error' }, { status: 500 });
+  }
+}
+
+// PATCH update order status (admin only)
 export async function PATCH(req: Request) {
-  const { id, status, tracking_number, shipping_fee } = await req.json();
+  if (!await isAdmin()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  try {
+    const { id, status, tracking_number, shipping_fee } = await req.json();
 
-  const { data: order, error: fetchErr } = await supabaseAdmin
-    .from('orders')
-    .select('customer_email, customer_name, id, shipping_fee')
-    .eq('id', id)
-    .single();
+    const [order] = await sql`
+      SELECT customer_email, customer_name, id, shipping_fee
+      FROM orders WHERE id = ${id}
+    `;
+    if (!order) return NextResponse.json({ error: 'Order not found' }, { status: 404 });
 
-  if (fetchErr) return NextResponse.json({ error: fetchErr.message }, { status: 500 });
+    if (tracking_number !== undefined && shipping_fee !== undefined) {
+      await sql`UPDATE orders SET status = ${status}, tracking_number = ${tracking_number}, shipping_fee = ${Number(shipping_fee)} WHERE id = ${id}`;
+    } else if (tracking_number !== undefined) {
+      await sql`UPDATE orders SET status = ${status}, tracking_number = ${tracking_number} WHERE id = ${id}`;
+    } else if (shipping_fee !== undefined) {
+      await sql`UPDATE orders SET status = ${status}, shipping_fee = ${Number(shipping_fee)} WHERE id = ${id}`;
+    } else {
+      await sql`UPDATE orders SET status = ${status} WHERE id = ${id}`;
+    }
 
-  // Build update payload
-  const updatePayload: Record<string, any> = { status };
-  if (tracking_number !== undefined) {
-    updatePayload.tracking_number = tracking_number;
+    if (order?.customer_email) {
+      sendStatusUpdate({
+        to:           order.customer_email,
+        orderNum:     order.id,
+        customerName: order.customer_name?.split(' ')[0] || 'Customer',
+        status,
+        trackingNumber: tracking_number || undefined,
+        shippingFee: shipping_fee !== undefined ? Number(shipping_fee) : order.shipping_fee ?? undefined,
+      }).catch(console.error);
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (err: unknown) {
+    return NextResponse.json({ error: err instanceof Error ? err.message : 'Error' }, { status: 500 });
   }
-  if (shipping_fee !== undefined) {
-    updatePayload.shipping_fee = Number(shipping_fee);
-  }
-
-  const { error } = await supabaseAdmin
-    .from('orders')
-    .update(updatePayload)
-    .eq('id', id);
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-
-  // Email customer about status change (non-blocking)
-  if (order?.customer_email) {
-    sendStatusUpdate({
-      to:           order.customer_email,
-      orderNum:     order.id,
-      customerName: order.customer_name?.split(' ')[0] || 'Customer',
-      status,
-      trackingNumber: tracking_number || undefined,
-      shippingFee: shipping_fee !== undefined ? Number(shipping_fee) : order.shipping_fee ?? undefined,
-    }).catch(console.error);
-  }
-
-  return NextResponse.json({ success: true });
 }

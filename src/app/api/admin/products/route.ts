@@ -1,38 +1,58 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { autoRefreshToken: false, persistSession: false } }
-);
+import { sql } from '@/lib/db';
 
 export async function GET() {
-  const { data, error } = await supabaseAdmin
-    .from('products')
-    .select('*')
-    .order('name');
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data);
+  try {
+    const data = await sql`SELECT * FROM products ORDER BY name`;
+    return NextResponse.json(data);
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
 }
 
 export async function POST(req: Request) {
-  const body = await req.json();
-  const { error, data } = await supabaseAdmin.from('products').insert(body).select().single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data);
+  try {
+    const body = await req.json();
+    const { name, price, category, image, in_stock, sizes, tag, featured } = body;
+    const [row] = await sql`
+      INSERT INTO products (name, price, category, image, in_stock, sizes, tag, featured)
+      VALUES (${name}, ${price}, ${category}, ${image}, ${in_stock ?? true},
+              ${JSON.stringify(sizes ?? [])}, ${tag ?? null}, ${featured ?? false})
+      RETURNING *
+    `;
+    return NextResponse.json(row);
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
 }
 
 export async function PATCH(req: Request) {
-  const { id, ...updates } = await req.json();
-  const { error } = await supabaseAdmin.from('products').update(updates).eq('id', id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ success: true });
+  try {
+    const { id, name, price, category, image, in_stock, sizes, tag, featured } = await req.json();
+    await sql`
+      UPDATE products SET
+        name      = COALESCE(${name      ?? null}, name),
+        price     = COALESCE(${price     ?? null}, price),
+        category  = COALESCE(${category  ?? null}, category),
+        image     = COALESCE(${image     ?? null}, image),
+        in_stock  = COALESCE(${in_stock  ?? null}, in_stock),
+        sizes     = COALESCE(${sizes ? JSON.stringify(sizes) : null}::jsonb, sizes),
+        tag       = COALESCE(${tag       ?? null}, tag),
+        featured  = COALESCE(${featured  ?? null}, featured)
+      WHERE id = ${id}
+    `;
+    return NextResponse.json({ success: true });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
 }
 
 export async function DELETE(req: Request) {
-  const { id } = await req.json();
-  const { error } = await supabaseAdmin.from('products').delete().eq('id', id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ success: true });
+  try {
+    const { id } = await req.json();
+    await sql`DELETE FROM products WHERE id = ${id}`;
+    return NextResponse.json({ success: true });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
 }

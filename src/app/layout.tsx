@@ -10,17 +10,17 @@ import Footer from "@/components/Footer";
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",
-  display: "swap",      // Prevents invisible-text flash while the font loads
+  display: "swap",
   preload: true,
 });
 
 export const metadata: Metadata = {
-  title: "MONVRE Series 01",
+  title: "AJ KITCHEN | Premium Ghanaian Cuisine in Columbus",
   description:
-    "Premium tech-garment streetwear. Experience the anatomy of modern fashion.",
+    "Authentic homemade Ghanaian and African meals in Columbus, Ohio. Pre-order Jollof, Waakye, and Kelewele for weekend delivery.",
   openGraph: {
-    title: "MONVRE Series 01",
-    description: "Premium tech-garment streetwear.",
+    title: "AJ KITCHEN | Authentic Ghanaian Feast",
+    description: "Defying gravity with authentic flavors. Pre-order weekdays, delivery weekends in Columbus, OH.",
     type: "website",
   },
 };
@@ -28,7 +28,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#050505",
+  themeColor: "#db2777",
 };
 
 export default function RootLayout({
@@ -38,7 +38,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={inter.variable}>
-      <body className="bg-[#050505] text-white antialiased">
+      <body className="bg-white text-pink-600 antialiased selection:bg-pink-100 selection:text-pink-700">
         <CartProvider>
           <Navbar />
           <CartDrawer />

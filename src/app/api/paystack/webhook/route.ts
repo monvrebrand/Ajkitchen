@@ -1,13 +1,7 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { sql } from '@/lib/db';
 import crypto from 'crypto';
-import { sendOrderConfirmation } from '@/lib/email';
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { autoRefreshToken: false, persistSession: false } }
-);
+import { sendOrderConfirmation, sendAdminNewOrderAlert } from '@/lib/email';
 
 export async function POST(req: Request) {
   const rawBody = await req.text();
@@ -16,10 +10,7 @@ export async function POST(req: Request) {
   // Verify Paystack webhook signature
   const secret = process.env.PAYSTACK_WEBHOOK_SECRET;
   if (secret) {
-    const hash = crypto
-      .createHmac('sha512', secret)
-      .update(rawBody)
-      .digest('hex');
+    const hash = crypto.createHmac('sha512', secret).update(rawBody).digest('hex');
     if (hash !== signature) {
       return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
     }
@@ -28,49 +19,59 @@ export async function POST(req: Request) {
   const event = JSON.parse(rawBody);
 
   if (event.event === 'charge.success') {
-    const tx = event.data;
+    const tx  = event.data;
     const ref = tx.reference;
 
-    // Check if order already saved (from polling in checkout)
-    const { data: existing } = await supabaseAdmin
-      .from('orders')
-      .select('id')
-      .eq('paystack_ref', ref)
-      .single();
+    // Check if order already saved (from checkout polling)
+    const [existing] = await sql`SELECT id FROM orders WHERE paystack_ref = ${ref}`;
 
     if (!existing) {
-      // Order not saved yet — create it from webhook data
-      const meta = tx.metadata || {};
-      const orderNum = `MV-${Math.floor(100000 + Math.random() * 900000)}`;
+      const meta     = tx.metadata || {};
+      const orderNum = `AJK-${Math.floor(100000 + Math.random() * 900000)}`;
 
-      const { error } = await supabaseAdmin.from('orders').insert({
-        id: orderNum,
-        paystack_ref: ref,
-        customer_email: tx.customer?.email,
-        customer_name: `${meta.firstName || ''} ${meta.lastName || ''}`.trim(),
-        customer_phone: tx.customer?.phone || meta.phone,
-        shipping_address: meta.address || '',
-        shipping_city: meta.city || '',
-        items: meta.items || [],
-        subtotal: tx.amount / 100,
-        shipping_fee: meta.shippingFee || 0,
-        tax: meta.tax || 0,
-        total: tx.amount / 100,
-        currency: tx.currency,
-        status: 'Processing',
-      });
+      const [newOrder] = await sql`
+        INSERT INTO orders (
+          id, paystack_ref, customer_email, customer_name, customer_phone,
+          shipping_address, shipping_city, items, subtotal, shipping_fee,
+          tax, total, currency, status
+        ) VALUES (
+          ${orderNum}, ${ref},
+          ${tx.customer?.email ?? null},
+          ${`${meta.firstName || ''} ${meta.lastName || ''}`.trim()},
+          ${tx.customer?.phone || meta.phone || null},
+          ${meta.address || ''},
+          ${meta.city    || ''},
+          ${JSON.stringify(meta.items || [])}::jsonb,
+          ${tx.amount / 100},
+          ${meta.shippingFee || 0},
+          ${meta.tax || 0},
+          ${tx.amount / 100},
+          ${tx.currency},
+          'Processing'
+        )
+        RETURNING id
+      `;
 
-      if (!error) {
-        // Send confirmation email
+      if (newOrder) {
         await sendOrderConfirmation({
-          to: tx.customer?.email,
+          to:           tx.customer?.email,
           orderNum,
-          customerName: `${meta.firstName || 'Customer'}`,
-          items: meta.items || [],
-          total: tx.amount / 100,
-          currency: tx.currency,
-          address: `${meta.address || ''}, ${meta.city || ''}`,
-        });
+          customerName: meta.firstName || 'Customer',
+          items:        meta.items || [],
+          total:        tx.amount / 100,
+          currency:     tx.currency,
+          address:      `${meta.address || ''}, ${meta.city || ''}`,
+        }).catch(console.error);
+
+        await sendAdminNewOrderAlert({
+          orderNum,
+          customerName:  `${meta.firstName || ''} ${meta.lastName || ''}`.trim() || 'Customer',
+          customerPhone: tx.customer?.phone || meta.phone || '',
+          total:         tx.amount / 100,
+          paymentMethod: 'card',
+          address:       `${meta.address || ''}, ${meta.city || ''}`,
+          items:         (meta.items || []).map((i: { name: string; qty: number }) => ({ name: i.name, qty: i.qty })),
+        }).catch(console.error);
       }
     }
   }
